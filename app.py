@@ -146,8 +146,19 @@ MONTHS_LEFT = max(1, int((YEAR_END - TODAY).days / 30))
 # ══════════════════════════════════════════════════════════════
 col_t1, col_t2, col_t3 = st.columns([3, 1, 1])
 with col_t1:
-    st.markdown("# 📊 Kitty 投資組合  ·  CFA 儀表板")
-    st.caption(f"資料更新：{TODAY.strftime('%Y/%m/%d %H:%M')}（每小時自動重整）　｜　目標：2026年底達到 NT$200萬")
+    st.markdown(f"""
+    <div style="padding: 8px 0 4px 0;">
+      <div style="font-size:11px; letter-spacing:4px; color:#8B949E; text-transform:uppercase; margin-bottom:4px;">
+        📊 Kitty's Portfolio
+      </div>
+      <div style="font-size:28px; font-weight:800; color:#E6EDF3; letter-spacing:1px; line-height:1.2;">
+        投資組合儀表板
+      </div>
+      <div style="font-size:12px; color:#8B949E; margin-top:6px;">
+        資料更新：{TODAY.strftime('%Y/%m/%d %H:%M')}　·　每小時自動重整　·　目標：2026年底 NT$200萬
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 with col_t2:
     progress = TOTAL / GOAL
     st.markdown(f"""
@@ -502,3 +513,4 @@ with col_note:
 # Footer
 st.divider()
 st.caption("⚠️ 本儀表板為個人財務分析工具，非投資建議。資料來源：Google Sheets（每小時自動更新）。")
+
