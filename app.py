@@ -61,7 +61,7 @@ st.markdown("""
 SHEET_URL = (
     "https://docs.google.com/spreadsheets/d/"
     "1-GHglq7SWRqtxFeF8EpUkFBVqK5dxhGvUxXS14A2TVw"
-    "/export?format=csv&gid=763823790"
+    "/export?format=csv&gid=1579018996"
 )
 
 GOAL = 2_000_000
@@ -82,39 +82,52 @@ SECTOR_MAP = {
     "2454":   ("半導體",    "台股"),
 }
 
+# 試算表中的代號與標準代號對應
+TICKER_NORMALIZE = {"50": "0050", "6208": "006208"}
+
 # ══════════════════════════════════════════════════════════════
 # 從 Google Sheets 載入資料（1 小時快取）
 # ══════════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600, show_spinner="載入最新持倉資料...")
 def load_data():
     try:
-        df_raw = pd.read_csv(SHEET_URL, header=None, dtype=str)
-
-        # 現金
-        cash_mask = df_raw.iloc[:, 0].astype(str).str.strip() == "現金"
-        cash = float(str(df_raw.loc[cash_mask].iloc[0, 1]).replace(",", "").strip())
-
-        # 總資產（找 100.00% 那行）
-        pct_mask = df_raw.iloc[:, 2].astype(str).str.strip() == "100.00%"
-        total = float(str(df_raw.loc[pct_mask].iloc[0, 1]).replace(",", "").strip())
-
-        # 持倉
-        valid = set(SECTOR_MAP.keys())
-        rows = df_raw[df_raw.iloc[:, 4].isin(valid)]
+        df_raw = pd.read_csv(SHEET_URL, header=None, dtype=str, skiprows=1)
+        # 欄位：代號, 股數, 成本(TWD), 最新價, 類型, 市值(TWD), 報酬率
 
         holdings = []
-        for _, row in rows.iterrows():
-            ticker = str(row.iloc[4]).strip()
+        total = None
+
+        for _, row in df_raw.iterrows():
+            raw_ticker = str(row.iloc[0]).strip()
+
+            # 總資產列
+            if "TOTAL" in raw_ticker:
+                val = str(row.iloc[5]).replace(",", "").strip()
+                if val and val not in ("nan", ""):
+                    total = float(val)
+                continue
+
+            # 正規化代號（50→0050, 6208→006208）
+            ticker = TICKER_NORMALIZE.get(raw_ticker, raw_ticker)
+
+            if ticker not in SECTOR_MAP:
+                continue
+
             value  = float(str(row.iloc[5]).replace(",", "").strip())
-            cost   = float(str(row.iloc[6]).replace(",", "").strip())
-            shares = float(str(row.iloc[12]).replace(",", "").strip())
+            cost   = float(str(row.iloc[2]).replace(",", "").strip())
+            shares = float(str(row.iloc[1]).replace(",", "").strip())
             sector, region = SECTOR_MAP[ticker]
             holdings.append({
                 "ticker": ticker, "value": value, "cost": cost,
                 "shares": shares, "sector": sector, "region": region,
             })
 
-        return pd.DataFrame(holdings), cash, total
+        df_h = pd.DataFrame(holdings)
+        stock_sum = df_h["value"].sum()
+        cash = max((total or stock_sum) - stock_sum, 0)
+        total = total or stock_sum
+
+        return df_h, cash, total
 
     except Exception as e:
         st.error(f"❌ 無法載入 Google Sheets：{e}")
@@ -513,4 +526,3 @@ with col_note:
 # Footer
 st.divider()
 st.caption("⚠️ 本儀表板為個人財務分析工具，非投資建議。資料來源：Google Sheets（每小時自動更新）。")
-
